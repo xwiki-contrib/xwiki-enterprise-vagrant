@@ -20,182 +20,172 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 *
 -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.xwiki.enterprise</groupId>
-		<artifactId>xwiki-enterprise</artifactId>
-		<version>4.4</version>
-	</parent>
-	<artifactId>xwiki-enterprise-vagrant</artifactId>
-	<name>XWiki Enterprise - Vagrant VM</name>
-	<packaging>pom</packaging>
-	<description>XWiki Enterprise - Create VM's (Vagrant-VirtualBox) and provision them using Puppet</description>
-	<properties>
-	    <!-- The name of the basebox which will be installed in the system for 
-			provisioning (this is the template box) -->
-		<baseBoxName>XWiki-baseBox-VM</baseBoxName>
-		<!-- The URL or local path to base box. For a list with remote 
-			boxes, please check http://www.vagrantbox.es/. The current hardcoded value 
-			will download a Ubuntu Quantal 12.10 (Quantal Quetzal) 64-bit machine.
-			Important: There are some older base boxes which will misbehave when provisioning because the of the
-			postinstall.sh they contain which is responsable of installing ruby and puppet.
-			If you have troubles, use a newer base box.
-			Note: base boxes are not just simple boxes, check http://docs.vagrantup.com/v1/docs/base_boxes.html  -->
-		<!--<baseBoxURL>https://github.com/downloads/roderik/VagrantQuantal64Box/quantal64.box</baseBoxURL> -->
-		<baseBoxURL>https://github.com/downloads/roderik/VagrantQuantal64Box/quantal64.box</baseBoxURL>
-		<!-- If the base box is already installed and want to remove it, set 
-			-Dskip.removing.baseBox to true -->
-		<skip.remove.baseBox>true</skip.remove.baseBox>
-		<!-- Skip downloading the baseBox and assume it is already installed. -->
-		<skip.download.baseBox>false</skip.download.baseBox>
-		<!-- Skip starting the baseBox. This will fail all the following steps. Used for debugging. -->
-		<skip.start.baseBox>false</skip.start.baseBox>
-		<!-- Skip packaging the baseBox. Used for debugging --> 
-		<skip.package.baseBox>false</skip.package.baseBox>
-		<!-- Skip moving the packabe.box file from baseBox to provisionedBox dir 
-		     Used for debugging -->
-		<skip.move.provisionedBox>false</skip.move.provisionedBox>
-		
-		<!-- Used for generating readme.txt from target,
-		     and in /etc/hostname and /etc/motd of the provisioned box -->
-		<provisionedBoxName>XWiki-VM</provisionedBoxName>
-		<!-- The IP Address for accessing the provisioned box via SHH.
-		     For further customization is needed, check the Vagrant file
-		     from the target directory -->
-		<provisionedBoxIPAddress>192.168.1.7</provisionedBoxIPAddress>
-	</properties>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-resources-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-baseBox-resources</id>
-						<!-- Copy src/main/resources/baseBox to /target/baseBox -->
-						<phase>process-resources</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>${project.build.directory}</outputDirectory>
-							<resources>
-								<resource>
-									<directory>src/main/resources</directory>
-									<filtering>true</filtering>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>exec-maven-plugin</artifactId>
-				<executions>
-				    <!-- 1) Removes the baseBox from the existing boxes if already installed. -->
-					<execution>
-						<id>remove-existing-basebox-machine</id>
-						<phase>prepare-package</phase>
-						<configuration>
-							<executable>/usr/bin/vagrant</executable>
-							<!--optional -->
-							<workingDirectory>/tmp</workingDirectory>
-							<arguments>
-								<argument>box</argument>
-								<argument>remove</argument>
-								<argument>${baseBoxName}</argument>
-							</arguments>
-							<skip>${skip.remove.baseBox}</skip>
-						</configuration>
-						<goals>
-							<goal>exec</goal>
-						</goals>
-					</execution>
-					<!-- 2) Downloads the baseBox either from web, or from local specified path and installs it
-					        The box is added in ./vagrant.d/boxes directory -->
-					<execution>
-						<id>download-basebox-machine</id>
-						<phase>prepare-package</phase>
-						<configuration>
-							<executable>/usr/bin/vagrant</executable>
-							<!--optional -->
-							<workingDirectory>/tmp</workingDirectory>
-							<arguments>
-								<argument>box</argument>
-								<argument>add</argument>
-								<argument>${baseBoxName}</argument>
-								<argument>${baseBoxURL}</argument>
-							</arguments>
-							<skip>${skip.download.baseBox}</skip>
-						</configuration>
-						<goals>
-							<goal>exec</goal>
-						</goals>
-					</execution>
-					<!-- 3) Starts the baseBox and provisions it
-					        The base box is copied from ./vagrant.d/boxes into VirtualBox VMs directory -->
-					<execution>
-						<id>start-basebox-machine</id>
-						<phase>prepare-package</phase>
-						<configuration>
-							<executable>vagrant</executable>
-							<!--optional -->
-							<workingDirectory>${project.build.directory}/baseBox</workingDirectory>
-							<arguments>
-								<argument>up</argument>
-							</arguments>
-							<skip>${skip.start.baseBox}</skip>
-						</configuration>
-						<goals>
-							<goal>exec</goal>
-						</goals>
-					</execution>
-					<!-- 4) Packages the provisioned VM 
-					        The post-provisioning state of the VM is saved into the package.box file in project target/baseBox folder -->
-					<execution>
-						<id>package-into-final-VM</id>
-						<phase>package</phase>
-						<configuration>
-							<executable>vagrant</executable>
-							<!--optional -->
-							<workingDirectory>${project.build.directory}/baseBox</workingDirectory>
-							<arguments>
-								<argument>package</argument>
-								<argument>--vagrantfile</argument>
-								<argument>Vagrantfile.pkg</argument>
-							</arguments>
-							<skip>${skip.package.baseBox}</skip>
-						</configuration>
-						<goals>
-							<goal>exec</goal>
-						</goals>
-					</execution>
-					<execution>
-					    <!-- Unfortunately I wasn't able to find a way to properly
-					         move package.box from baseBox dir to provisionedBox dir
-					         using maven-resources-plugin -->
-						<id>move-VM-to-final-destination</id>
-						<phase>verify</phase>
-						<configuration>
-							<executable>mv</executable>
-							<!--optional -->
-							<workingDirectory>${project.build.directory}/baseBox</workingDirectory>
-							<arguments>
-								<argument>package.box</argument>
-								<argument>../provisionedBox</argument>
-							</arguments>
-							<skip>${skip.move.provisionedBox}</skip>
-						</configuration>
-						<goals>
-							<goal>exec</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.xwiki.enterprise</groupId>
+    <artifactId>xwiki-enterprise</artifactId>
+    <version>4.4</version>
+  </parent>
+  <artifactId>xwiki-enterprise-vagrant</artifactId>
+  <name>XWiki Enterprise - Vagrant VM</name>
+  <packaging>pom</packaging>
+  <description>XWiki Enterprise - Create VM's (Vagrant-VirtualBox) and provision them using Puppet</description>
+  <properties>
+    <!-- The name of the basebox which will be installed in the system for provisioning (this is the template box) -->
+    <baseBoxName>XWiki-baseBox-VM</baseBoxName>
+    <!-- The URL or local path to base box. For a list with remote boxes, please check http://www.vagrantbox.es/. The current 
+      hardcoded value will download a Ubuntu Quantal 12.10 (Quantal Quetzal) 64-bit machine. Important: There are some older base 
+      boxes which will misbehave when provisioning because the of the postinstall.sh they contain which is responsable of installing 
+      ruby and puppet. If you have troubles, use a newer base box. Note: base boxes are not just simple boxes, check http://docs.vagrantup.com/v1/docs/base_boxes.html -->
+    <!--<baseBoxURL>https://github.com/downloads/roderik/VagrantQuantal64Box/quantal64.box</baseBoxURL> -->
+    <baseBoxURL>https://github.com/downloads/roderik/VagrantQuantal64Box/quantal64.box</baseBoxURL>
+    <!-- If the base box is already installed and want to remove it, set -Dskip.removing.baseBox to true -->
+    <skip.remove.baseBox>true</skip.remove.baseBox>
+    <!-- Skip downloading the baseBox and assume it is already installed. -->
+    <skip.download.baseBox>false</skip.download.baseBox>
+    <!-- Skip starting the baseBox. This will fail all the following steps. Used for debugging. -->
+    <skip.start.baseBox>false</skip.start.baseBox>
+    <!-- Skip packaging the baseBox. Used for debugging -->
+    <skip.package.baseBox>false</skip.package.baseBox>
+    <!-- Skip moving the packabe.box file from baseBox to provisionedBox dir Used for debugging -->
+    <skip.move.provisionedBox>false</skip.move.provisionedBox>
+
+    <!-- Used for generating readme.txt from target, and in /etc/hostname and /etc/motd of the provisioned box -->
+    <provisionedBoxName>XWiki-VM</provisionedBoxName>
+    <!-- The IP Address for accessing the provisioned box via SHH. For further customization is needed, check the Vagrant 
+      file from the target directory -->
+    <provisionedBoxIPAddress>192.168.1.7</provisionedBoxIPAddress>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-baseBox-resources</id>
+            <!-- Copy src/main/resources/baseBox to /target/baseBox -->
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>src/main/resources</directory>
+                  <filtering>true</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <!-- 1) Removes the baseBox from the existing boxes if already installed. -->
+          <execution>
+            <id>remove-existing-basebox-machine</id>
+            <phase>prepare-package</phase>
+            <configuration>
+              <executable>/usr/bin/vagrant</executable>
+              <!--optional -->
+              <workingDirectory>/tmp</workingDirectory>
+              <arguments>
+                <argument>box</argument>
+                <argument>remove</argument>
+                <argument>${baseBoxName}</argument>
+              </arguments>
+              <skip>${skip.remove.baseBox}</skip>
+            </configuration>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+          <!-- 2) Downloads the baseBox either from web, or from local specified path and installs it The box is added in 
+            ./vagrant.d/boxes directory -->
+          <execution>
+            <id>download-basebox-machine</id>
+            <phase>prepare-package</phase>
+            <configuration>
+              <executable>/usr/bin/vagrant</executable>
+              <!--optional -->
+              <workingDirectory>/tmp</workingDirectory>
+              <arguments>
+                <argument>box</argument>
+                <argument>add</argument>
+                <argument>${baseBoxName}</argument>
+                <argument>${baseBoxURL}</argument>
+              </arguments>
+              <skip>${skip.download.baseBox}</skip>
+            </configuration>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+          <!-- 3) Starts the baseBox and provisions it The base box is copied from ./vagrant.d/boxes into VirtualBox VMs 
+            directory -->
+          <execution>
+            <id>start-basebox-machine</id>
+            <phase>prepare-package</phase>
+            <configuration>
+              <executable>vagrant</executable>
+              <!--optional -->
+              <workingDirectory>${project.build.directory}/baseBox</workingDirectory>
+              <arguments>
+                <argument>up</argument>
+              </arguments>
+              <skip>${skip.start.baseBox}</skip>
+            </configuration>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+          <!-- 4) Packages the provisioned VM The post-provisioning state of the VM is saved into the package.box file in 
+            project target/baseBox folder -->
+          <execution>
+            <id>package-into-final-VM</id>
+            <phase>package</phase>
+            <configuration>
+              <executable>vagrant</executable>
+              <!--optional -->
+              <workingDirectory>${project.build.directory}/baseBox</workingDirectory>
+              <arguments>
+                <argument>package</argument>
+                <argument>--vagrantfile</argument>
+                <argument>Vagrantfile.pkg</argument>
+              </arguments>
+              <skip>${skip.package.baseBox}</skip>
+            </configuration>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+          <execution>
+            <!-- Unfortunately I wasn't able to find a way to properly move package.box from baseBox dir to provisionedBox 
+              dir using maven-resources-plugin -->
+            <id>move-VM-to-final-destination</id>
+            <phase>verify</phase>
+            <configuration>
+              <executable>mv</executable>
+              <!--optional -->
+              <workingDirectory>${project.build.directory}/baseBox</workingDirectory>
+              <arguments>
+                <argument>package.box</argument>
+                <argument>../provisionedBox</argument>
+              </arguments>
+              <skip>${skip.move.provisionedBox}</skip>
+            </configuration>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
